@@ -220,6 +220,7 @@ h1 {
 
 .status-processing { background: rgba(56, 189, 248, 0.15); color: var(--primary-color); border: 1px solid rgba(56, 189, 248, 0.2); }
 .status-completed { background: rgba(16, 185, 129, 0.15); color: var(--cta-color); border: 1px solid rgba(16, 185, 129, 0.2); }
+.status-failed { background: rgba(239, 68, 68, 0.15); color: var(--error-color); border: 1px solid rgba(239, 68, 68, 0.2); }
 
 .progress-bar-container {
   height: 6px;

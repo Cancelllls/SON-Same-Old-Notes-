@@ -6,6 +6,7 @@ interface TaskStatus {
   filename: string;
   status: string;
   files?: string[];
+  results?: string[];
   folder?: string;
   error?: string;
   created_at?: string;
@@ -329,7 +330,7 @@ function App() {
 
         {currentTask?.status === "completed" && (
           <div className="results-grid">
-            {currentTask.files?.map(filename => (
+            {(currentTask.files || currentTask.results)?.map(filename => (
               <div key={filename} className="stem-card">
                 <div className="stem-info">
                   <span className="stem-title">{filename.replace(".wav", "")}</span>
@@ -341,19 +342,45 @@ function App() {
           </div>
         )}
 
+        {currentTask && (
+          <button 
+            className="btn-primary" 
+            style={{ marginTop: '2rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)' }}
+            onClick={() => {
+              setCurrentTask(null);
+              setFile(null);
+            }}
+          >
+            ← New Separation
+          </button>
+        )}
+
         <section className="history-section">
           <h2 className="history-title">Separation Vault</h2>
           <div className="history-list">
             {history.length === 0 && <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Your processed stems will appear here.</p>}
             {history.map(item => (
-              <div key={item.file_id} className="history-item" onClick={() => setCurrentTask(item)}>
+              <div 
+                key={item.file_id} 
+                className={`history-item ${currentTask?.file_id === item.file_id ? 'active-history' : ''}`} 
+                onClick={() => {
+                  setCurrentTask(item);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                style={currentTask?.file_id === item.file_id ? { border: '1px solid var(--primary-color)', background: 'rgba(56, 189, 248, 0.05)' } : {}}
+              >
                 <div>
                   <div className="history-name">{item.filename}</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
                     {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}
                   </div>
                 </div>
-                <span className={`status-badge ${item.status === 'completed' ? 'status-completed' : 'status-processing'}`}>{item.status}</span>
+                <span className={`status-badge ${
+                  item.status === 'completed' ? 'status-completed' : 
+                  item.status === 'failed' ? 'status-failed' : 'status-processing'
+                }`}>
+                  {item.status}
+                </span>
               </div>
             ))}
           </div>
