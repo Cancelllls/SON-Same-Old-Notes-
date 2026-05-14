@@ -19,6 +19,7 @@ function App() {
   const [history, setHistory] = useState<TaskStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [showDocs, setShowDocs] = useState(false);
 
   // Fetch history on load
   const fetchHistory = async () => {
@@ -116,17 +117,34 @@ function App() {
             <div className="logo-icon">⚡</div>
             StemSplitter
           </a>
-          <button className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-            Documentation
+          <button 
+            className="btn-primary" 
+            style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+            onClick={() => setShowDocs(!showDocs)}
+          >
+            {showDocs ? "Close Docs" : "Documentation"}
           </button>
         </div>
       </nav>
 
       <div className="container">
-        <section className="hero">
-          <h1>Separate Audio <br/> with AI Precision</h1>
-          <p>The fastest way to extract vocals, drums, and instruments from any song using high-fidelity demucs models.</p>
-        </section>
+        {showDocs ? (
+          <section className="process-card" style={{ textAlign: 'left', marginBottom: '2rem' }}>
+            <h2 className="history-title" style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>How it Works</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', color: 'var(--text-secondary)' }}>
+              <p><strong>1. Upload:</strong> Select an MP3 or WAV file. We support files up to 15MB.</p>
+              <p><strong>2. Separation:</strong> Our AI engine (Facebook Demucs) uses deep learning to identify and extract different sound frequencies corresponding to specific instruments.</p>
+              <p><strong>3. Result:</strong> You get 4 distinct tracks: <strong>Vocals, Drums, Bass,</strong> and <strong>Other</strong> (Melody/Instruments).</p>
+              <hr style={{ opacity: 0.1 }} />
+              <p><em>Note: Processing happens entirely on our secure servers. Your data is encrypted in transit and anonymized.</em></p>
+            </div>
+          </section>
+        ) : (
+          <section className="hero">
+            <h1>Separate Audio <br/> with AI Precision</h1>
+            <p>The fastest way to extract vocals, drums, and instruments from any song using high-fidelity demucs models.</p>
+          </section>
+        )}
 
         {!currentTask || currentTask.status === "completed" || currentTask.status === "failed" ? (
           <div 
