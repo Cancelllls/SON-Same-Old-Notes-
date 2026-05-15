@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 node_modules
 dist
 .git
@@ -7,17 +6,3 @@ backend/uploads/*
 backend/outputs/*
 *.db
 .env
-=======
-.git
-.github
-.gemini
-node_modules
-frontend/node_modules
-frontend/dist
-backend/__pycache__
-backend/uploads/*
-backend/outputs/*
-*.db
-*.apk
-android
->>>>>>> 73233a251ce18d1e6a6b8aaf4c1b811c751f0aca
