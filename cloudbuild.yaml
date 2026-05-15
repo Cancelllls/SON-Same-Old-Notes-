@@ -19,6 +19,7 @@ steps:
       - '--region'
       - 'europe-west1'
       - '--platform'
+      - 'managed'
       - '--cpu'
       - '2'
       - '--memory'
