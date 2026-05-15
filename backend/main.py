@@ -18,7 +18,7 @@ SECRET_KEY = secrets.token_hex(32)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 1 week
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/token")
 
 app = FastAPI()
 
@@ -49,11 +49,6 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 print(f"Startup: Storage initialized at {UPLOAD_DIR} and {OUTPUT_DIR}")
 
 app.mount("/outputs", StaticFiles(directory=str(OUTPUT_DIR)), name="outputs")
-
-# Mount frontend if it exists
-FRONTEND_DIR = Path("frontend-dist")
-if FRONTEND_DIR.exists():
-    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
 
 @app.get("/")
 async def root():
@@ -104,7 +99,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     return user
 
 # Auth Routes
-@app.post("/register")
+@app.post("/api/register")
 async def register(email: str, password: str, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -114,7 +109,7 @@ async def register(email: str, password: str, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "User created successfully"}
 
-@app.post("/token")
+@app.post("/api/token")
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -160,7 +155,7 @@ def separate_audio(file_id: str, input_path: Path):
         update_task_status(file_id, "failed", error=str(e))
 
 # Core Routes
-@app.post("/upload")
+@app.post("/api/upload")
 async def upload_audio(
     background_tasks: BackgroundTasks, 
     file: UploadFile = File(...), 
@@ -181,13 +176,13 @@ async def upload_audio(
     background_tasks.add_task(separate_audio, file_id, file_path)
     return {"file_id": file_id, "status": "queued"}
 
-@app.get("/status/{file_id}")
+@app.get("/api/status/{file_id}")
 async def get_status(file_id: str, db: Session = Depends(get_db)):
     task = db.query(AudioTask).filter(AudioTask.file_id == file_id).first()
     if not task: return {"status": "not_found"}
     return {"status": task.status, "results": task.results, "folder": task.folder, "error": task.error}
 
-@app.get("/history")
+@app.get("/api/history")
 async def get_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(AudioTask).filter(AudioTask.owner_id == current_user.id).order_by(AudioTask.created_at.desc()).limit(20).all()
 

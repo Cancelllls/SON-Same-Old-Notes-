@@ -30,7 +30,7 @@ function App() {
   const fetchHistory = async () => {
     if (!token) return;
     try {
-      const response = await fetch(`${apiBase}/history`, {
+      const response = await fetch(`${apiBase}/api/history`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (response.status === 401) {
@@ -55,7 +55,7 @@ function App() {
     formData.append("password", password);
 
     try {
-      const response = await fetch(`${apiBase}/token`, {
+      const response = await fetch(`${apiBase}/api/token`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: formData
@@ -77,7 +77,7 @@ function App() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${apiBase}/register?email=${email}&password=${password}`, {
+      const response = await fetch(`${apiBase}/api/register?email=${email}&password=${password}`, {
         method: "POST"
       });
       if (response.ok) {
@@ -131,7 +131,7 @@ function App() {
     formData.append("file", file);
 
     try {
-      const response = await fetch(`${apiBase}/upload`, {
+      const response = await fetch(`${apiBase}/api/upload`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },
         body: formData,
@@ -150,7 +150,7 @@ function App() {
     if (currentTask?.file_id && (currentTask.status === "queued" || currentTask.status === "processing")) {
       interval = setInterval(async () => {
         try {
-          const response = await fetch(`${apiBase}/status/${currentTask.file_id}`);
+          const response = await fetch(`${apiBase}/api/status/${currentTask.file_id}`);
           const data = await response.json();
           setCurrentTask(prev => ({ ...prev!, ...data }));
           if (data.status === "completed" || data.status === "failed") {
