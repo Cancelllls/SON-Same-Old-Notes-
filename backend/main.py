@@ -150,26 +150,50 @@ def update_task_status(file_id: str, status: str, results=None, folder=None, err
 
 def separate_audio(file_id: str, input_path: Path):
     try:
+        print(f"Separate Task: Starting for {file_id} using path {input_path}")
         update_task_status(file_id, "processing")
+        
         # Run Demucs
-        subprocess.run([
+        cmd = [
             "demucs", 
             "-n", "htdemucs", 
             "--device", "cpu",
             "-o", str(OUTPUT_DIR), 
             str(input_path)
-        ], check=True)
+        ]
+        print(f"Separate Task: Running command: {' '.join(cmd)}")
         
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"Separate Task: Demucs returned non-zero exit code {result.returncode}")
+            print(f"Separate Task: STDOUT: {result.stdout}")
+            print(f"Separate Task: STDERR: {result.stderr}")
+            raise Exception(f"Demucs failed with exit code {result.returncode}")
+
         stem_name = input_path.stem
+        # Demucs structure: OUTPUT_DIR / "htdemucs" / stem_name / *.wav
         result_dir = OUTPUT_DIR / "htdemucs" / stem_name
         
+        print(f"Separate Task: Checking for results in {result_dir}")
+        
         if result_dir.exists():
-            files = [str(f.name) for f in result_dir.glob("*.wav")]
-            update_task_status(file_id, "completed", results=files, folder=stem_name)
+            files = [f.name for f in result_dir.glob("*.wav")]
+            print(f"Separate Task: Found {len(files)} files: {files}")
+            if len(files) > 0:
+                update_task_status(file_id, "completed", results=files, folder=stem_name)
+            else:
+                print("Separate Task: Result directory exists but no .wav files found.")
+                update_task_status(file_id, "failed", error="No stem files generated.")
         else:
+            print(f"Separate Task: Result directory {result_dir} does not exist.")
+            # List parent directory to see what was created
+            model_dir = OUTPUT_DIR / "htdemucs"
+            if model_dir.exists():
+                print(f"Separate Task: Model dir contents: {[f.name for f in model_dir.iterdir()]}")
             update_task_status(file_id, "failed", error="Output directory not found")
     except Exception as e:
-        print(f"Demucs failed: {str(e)}")
+        print(f"Separate Task ERROR: {str(e)}")
         update_task_status(file_id, "failed", error=str(e))
 
 # Core Routes
