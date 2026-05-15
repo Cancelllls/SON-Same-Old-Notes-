@@ -141,17 +141,19 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
 
 def separate_audio_task(file_id: str, input_path: Path):
     try:
-        logger.info(f"Task {file_id}: Starting separation")
-        
+        logger.info(f"Task {file_id}: Starting separation. Path exists: {input_path.exists()}")
+        if not input_path.exists():
+            raise Exception("Input file vanished before processing")
+            
         db = SessionLocal()
         task = db.query(AudioTask).filter(AudioTask.file_id == file_id).first()
         if task:
             task.status = "processing"
             db.commit()
+            logger.info(f"Task {file_id}: Status updated to processing")
         db.close()
         
         # Run Demucs
-        # Note: We use -n htdemucs for better quality/speed balance
         cmd = [
             "demucs", 
             "-n", "htdemucs", 
@@ -160,15 +162,18 @@ def separate_audio_task(file_id: str, input_path: Path):
             str(input_path)
         ]
         
-        process = subprocess.run(cmd, capture_output=True, text=True)
+        logger.info(f"Task {file_id}: Executing AI engine...")
+        process = subprocess.run(cmd, capture_output=True, text=True, timeout=540)
         
         if process.returncode != 0:
             logger.error(f"Task {file_id}: Demucs failed. Error: {process.stderr}")
-            raise Exception("AI Engine failure")
+            raise Exception(f"AI Engine failure: {process.stderr[:200]}")
 
         stem_name = input_path.stem
-        # Demucs creates folder: OUTPUT_DIR / model_name / input_filename_stem
+        # Demucs structure: OUTPUT_DIR / model_name / stem_name / *.wav
         result_dir = OUTPUT_DIR / "htdemucs" / stem_name
+        
+        logger.info(f"Task {file_id}: Processing finished. Checking output at {result_dir}")
         
         db = SessionLocal()
         task = db.query(AudioTask).filter(AudioTask.file_id == file_id).first()
@@ -179,10 +184,10 @@ def separate_audio_task(file_id: str, input_path: Path):
                 task.status = "completed"
                 task.results = files
                 task.folder = stem_name
-                logger.info(f"Task {file_id}: Completed. Stems: {files}")
+                logger.info(f"Task {file_id}: Finalized. Stems: {files}")
             else:
                 task.status = "failed"
-                task.error = "No stem files found in output"
+                task.error = "No stem files found in output directory"
         elif task:
             task.status = "failed"
             task.error = f"Output directory not found: {result_dir}"

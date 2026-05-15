@@ -30,6 +30,9 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend-dist
 # Create storage base directory (will be used for /tmp mounting or ephemeral storage)
 RUN mkdir -p /tmp/stemsplitter/uploads /tmp/stemsplitter/outputs
 
+# Pre-download AI models
+RUN python3 -c "from demucs.pretrained import get_model; get_model('htdemucs')"
+
 # Use uvicorn directly with optimized settings
 # Cloud Run injects PORT environment variable
 CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1 --timeout-keep-alive 300"]
