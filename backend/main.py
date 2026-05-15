@@ -50,11 +50,7 @@ print(f"Startup: Storage initialized at {UPLOAD_DIR} and {OUTPUT_DIR}")
 
 app.mount("/outputs", StaticFiles(directory=str(OUTPUT_DIR)), name="outputs")
 
-<<<<<<< HEAD
 # Mount frontend if it exists
-=======
-# Mount frontend if it exists (for unified docker deployment)
->>>>>>> 73233a251ce18d1e6a6b8aaf4c1b811c751f0aca
 FRONTEND_DIR = Path("frontend-dist")
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
@@ -195,11 +191,6 @@ async def get_status(file_id: str, db: Session = Depends(get_db)):
 async def get_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(AudioTask).filter(AudioTask.owner_id == current_user.id).order_by(AudioTask.created_at.desc()).limit(20).all()
 
-<<<<<<< HEAD
-# SPA Catch-all
-=======
-# SPA Catch-all (Must be last)
->>>>>>> 73233a251ce18d1e6a6b8aaf4c1b811c751f0aca
 # SPA Catch-all
 @app.get("/{full_path:path}")
 async def catch_all(full_path: str):
