@@ -43,7 +43,6 @@ function App() {
   const [apiBase, setApiBase] = useState(localStorage.getItem("apiBase") || window.location.origin);
   const [showSettings, setShowSettings] = useState(false);
   
-  // Auth state
   const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
