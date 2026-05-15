@@ -40,10 +40,13 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Content-Security-Policy"] = "default-src 'self'; media-src 'self' *; connect-src 'self' *; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: *;"
     return response
 
-UPLOAD_DIR = Path("backend/uploads")
-OUTPUT_DIR = Path("backend/outputs")
+UPLOAD_DIR = Path("/tmp/uploads")
+OUTPUT_DIR = Path("/tmp/outputs")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Add a startup log for health checks
+print(f"Startup: Storage initialized at {UPLOAD_DIR} and {OUTPUT_DIR}")
 
 app.mount("/outputs", StaticFiles(directory=str(OUTPUT_DIR)), name="outputs")
 
