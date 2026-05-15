@@ -1,0 +1,26 @@
+<svg width="400" height="200" viewBox="0 0 400 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="wave-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#312E81" stop-opacity="0" />
+      <stop offset="50%" stop-color="#F97316" />
+      <stop offset="100%" stop-color="#312E81" stop-opacity="0" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <!-- Background Wave 1 -->
+  <path d="M0 100 Q 50 20, 100 100 T 200 100 T 300 100 T 400 100" stroke="#1E1B4B" stroke-width="2" fill="none" opacity="0.5" />
+  <!-- Main Animated Wave (Static for SVG file) -->
+  <path d="M0 110 Q 50 40, 100 110 T 200 110 T 300 110 T 400 110" stroke="url(#wave-grad)" stroke-width="3" fill="none" filter="url(#glow)">
+    <animate attributeName="d" dur="5s" repeatCount="indefinite"
+      values="M0 110 Q 50 40, 100 110 T 200 110 T 300 110 T 400 110;
+              M0 110 Q 50 180, 100 110 T 200 110 T 300 110 T 400 110;
+              M0 110 Q 50 40, 100 110 T 200 110 T 300 110 T 400 110" />
+  </path>
+  <!-- Decorative Nodes -->
+  <circle cx="100" cy="100" r="3" fill="#F97316" />
+  <circle cx="200" cy="100" r="3" fill="#F97316" />
+  <circle cx="300" cy="100" r="3" fill="#F97316" />
+</svg>

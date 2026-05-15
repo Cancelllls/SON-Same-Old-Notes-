@@ -262,6 +262,40 @@ body {
   z-index: 10;
 }
 
+/* --- Hero Visuals --- */
+
+.hero-visual {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+  perspective: 1000px;
+}
+
+.spectral-wave {
+  width: 100%;
+  max-width: 500px;
+  filter: drop-shadow(0 0 20px rgba(249, 115, 22, 0.2));
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotateX(5deg); }
+  50% { transform: translateY(-15px) rotateX(0deg); }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--card-border);
+  border-radius: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  color: var(--text-secondary);
+}
+
 /* --- Buttons --- */
 
 .btn {

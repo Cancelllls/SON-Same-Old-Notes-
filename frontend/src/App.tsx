@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import SpectralWave from './assets/spectral-wave.svg'
+import EmptyVault from './assets/empty-vault.svg'
+import ProLogo from './assets/pro-logo.svg'
 
 interface TaskStatus {
   file_id: string;
@@ -193,7 +196,7 @@ function App() {
       <div className="auth-overlay">
         <div className="auth-card">
           <div className="auth-logo">
-            <Icons.Bolt /> StemSplitter Pro
+            <img src={ProLogo} alt="StemSplitter Pro" width="48" height="48" /> StemSplitter Pro
           </div>
           <form onSubmit={isRegistering ? handleRegister : handleLogin} className="auth-form">
             <div className="input-group">
@@ -230,7 +233,7 @@ function App() {
       <nav className="navbar">
         <div className="container navbar-content">
           <div className="brand">
-            <Icons.Bolt /> StemSplitter <span style={{ color: 'var(--accent-color)' }}>PRO</span>
+            <img src={ProLogo} alt="Pro" width="32" height="32" /> StemSplitter <span style={{ color: 'var(--accent-color)' }}>PRO</span>
           </div>
           <div className="nav-actions">
             <button className="btn btn-secondary" onClick={() => setShowSettings(!showSettings)}>
@@ -256,6 +259,9 @@ function App() {
         )}
 
         <section className="hero">
+          <div className="hero-visual">
+            <img src={SpectralWave} alt="Audio Spectrum" className="spectral-wave" />
+          </div>
           <h1>High-Fidelity <br/> Audio Decomposition</h1>
           <p>Extract vocals, percussion, and melodic layers with studio-grade AI precision.</p>
         </section>
@@ -337,7 +343,12 @@ function App() {
         <section className="history-section" style={{ paddingBottom: '10vh' }}>
           <h2 className="section-title">Production History</h2>
           <div className="history-list">
-            {history.length === 0 && <p style={{ color: 'var(--text-secondary)' }}>No previous sessions found.</p>}
+            {history.length === 0 && (
+              <div className="empty-state">
+                <img src={EmptyVault} alt="Empty" width="80" height="80" />
+                <p>No previous sessions found. Start by loading a studio master.</p>
+              </div>
+            )}
             {history.map(item => (
               <div 
                 key={item.file_id} 
