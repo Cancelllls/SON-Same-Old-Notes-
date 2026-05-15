@@ -46,8 +46,15 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/outputs", StaticFiles(directory=str(OUTPUT_DIR)), name="outputs")
 
+# Mount frontend if it exists (for unified docker deployment)
+FRONTEND_DIR = Path("frontend-dist")
+if FRONTEND_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
+
 @app.get("/")
 async def root():
+    if FRONTEND_DIR.exists():
+        return Response(content=(FRONTEND_DIR / "index.html").read_text(), media_type="text/html")
     return {"message": "StemSplitter API is running", "status": "healthy"}
 
 # Helper functions
@@ -175,6 +182,13 @@ async def get_status(file_id: str, db: Session = Depends(get_db)):
 @app.get("/history")
 async def get_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(AudioTask).filter(AudioTask.owner_id == current_user.id).order_by(AudioTask.created_at.desc()).limit(20).all()
+
+# SPA Catch-all (Must be last)
+@app.get("/{full_path:path}")
+async def catch_all(full_path: str):
+    if FRONTEND_DIR.exists():
+        return Response(content=(FRONTEND_DIR / "index.html").read_text(), media_type="text/html")
+    raise HTTPException(status_code=404)
 
 if __name__ == "__main__":
     import uvicorn
