@@ -48,16 +48,34 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # Add a startup log for health checks
 print(f"Startup: Storage initialized at {UPLOAD_DIR} and {OUTPUT_DIR}")
 
+FRONTEND_DIR = Path("/app/frontend-dist")
+if not FRONTEND_DIR.exists():
+    FRONTEND_DIR = Path("frontend-dist")
+
+print(f"Startup: Checking for frontend at {FRONTEND_DIR.absolute()}")
+if FRONTEND_DIR.exists():
+    index_file = FRONTEND_DIR / "index.html"
+    print(f"Startup: Frontend directory found. index.html exists: {index_file.exists()}")
+else:
+    print("Startup: FRONTEND DIRECTORY NOT FOUND!")
+
 app.mount("/outputs", StaticFiles(directory=str(OUTPUT_DIR)), name="outputs")
+
+# Mount static assets (JS/CSS)
+if FRONTEND_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets")), name="assets")
 
 @app.get("/")
 async def root():
     try:
-        if FRONTEND_DIR.exists() and (FRONTEND_DIR / "index.html").exists():
-            return Response(content=(FRONTEND_DIR / "index.html").read_text(), media_type="text/html")
+        index_file = FRONTEND_DIR / "index.html"
+        if index_file.exists():
+            return Response(content=index_file.read_text(), media_type="text/html")
+        else:
+            print(f"Root call: index.html not found at {index_file.absolute()}")
     except Exception as e:
         print(f"Error serving index.html: {e}")
-    return {"message": "StemSplitter API is running", "status": "healthy"}
+    return {"message": "StemSplitter API is running (Index not found)", "status": "healthy"}
 
 # Database Dependency
 def get_db():
