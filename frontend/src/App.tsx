@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
 interface TaskStatus {
@@ -11,13 +11,38 @@ interface TaskStatus {
   created_at?: string;
 }
 
+const Icons = {
+  Bolt: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+    </svg>
+  ),
+  Upload: () => (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+  ),
+  Settings: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  ),
+  Download: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>
+  ),
+  Play: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 9-14 9V3z"/></svg>
+  )
+}
+
 function App() {
   const [file, setFile] = useState<File | null>(null);
   const [currentTask, setCurrentTask] = useState<TaskStatus | null>(null);
   const [history, setHistory] = useState<TaskStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  const [showDocs, setShowDocs] = useState(false);
   const [apiBase, setApiBase] = useState(localStorage.getItem("apiBase") || window.location.origin);
   const [showSettings, setShowSettings] = useState(false);
   
@@ -70,7 +95,7 @@ function App() {
         localStorage.setItem("token", data.access_token);
       }
     } catch (error: any) {
-      alert(`Login failed: ${error.message}`);
+      alert(`Authentication Error: ${error.message}`);
     }
   };
 
@@ -81,14 +106,14 @@ function App() {
         method: "POST"
       });
       if (response.ok) {
-        alert("Registration successful! Please login.");
+        alert("Account created! Please sign in.");
         setIsRegistering(false);
       } else {
         const data = await response.json();
         alert(data.detail || "Registration failed");
       }
     } catch (error) {
-      alert("Registration failed");
+      alert("System Error: Could not connect to server.");
     }
   };
 
@@ -136,21 +161,22 @@ function App() {
         headers: { "Authorization": `Bearer ${token}` },
         body: formData,
       });
-      if (!response.ok) throw new Error("Upload failed");
+      if (!response.ok) throw new Error("Processing limits exceeded or invalid file.");
       const data = await response.json();
       setCurrentTask({ file_id: data.file_id, filename: file.name, status: "queued" });
-    } catch (error) {
-      alert("Upload failed");
+    } catch (error: any) {
+      alert(error.message);
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    let interval: number;
+    let interval: any;
     if (currentTask?.file_id && (currentTask.status === "queued" || currentTask.status === "processing")) {
       interval = setInterval(async () => {
         try {
           const response = await fetch(`${apiBase}/api/status/${currentTask.file_id}`);
+          if (!response.ok) return;
           const data = await response.json();
           setCurrentTask(prev => ({ ...prev!, ...data }));
           if (data.status === "completed" || data.status === "failed") {
@@ -159,7 +185,7 @@ function App() {
             fetchHistory();
           }
         } catch (error) {
-          console.error("Status check failed", error);
+          console.error("Status sync failed", error);
         }
       }, 3000);
     }
@@ -168,33 +194,36 @@ function App() {
 
   if (!token) {
     return (
-      <div className="app-wrapper">
-        <div className="container auth-container">
-          <div className="logo auth-logo">
-            <div className="logo-icon">⚡</div> StemSplitter
+      <div className="auth-overlay">
+        <div className="auth-card">
+          <div className="auth-logo">
+            <Icons.Bolt /> StemSplitter Pro
           </div>
-          <section className="process-card">
-            <h2>{isRegistering ? 'Create Account' : 'Welcome Back'}</h2>
-            <form onSubmit={isRegistering ? handleRegister : handleLogin} className="auth-form">
+          <form onSubmit={isRegistering ? handleRegister : handleLogin} className="auth-form">
+            <div className="input-group">
+              <label>Professional Email</label>
               <input 
-                type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required 
+                type="email" placeholder="name@studio.com" value={email} onChange={e => setEmail(e.target.value)} required 
                 className="input-field"
               />
+            </div>
+            <div className="input-group">
+              <label>Security Key</label>
               <input 
-                type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required 
+                type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required 
                 className="input-field"
               />
-              <button className="btn-primary" type="submit">
-                {isRegistering ? 'Sign Up' : 'Sign In'}
-              </button>
-            </form>
-            <p className="auth-toggle">
-              {isRegistering ? 'Already have an account?' : "Don't have an account?"}
-              <span onClick={() => setIsRegistering(!isRegistering)}>
-                {isRegistering ? 'Login' : 'Sign Up'}
-              </span>
-            </p>
-          </section>
+            </div>
+            <button className="btn btn-primary" type="submit" style={{ width: '100%', marginTop: '1rem' }}>
+              {isRegistering ? 'Initialize Account' : 'Secure Sign In'}
+            </button>
+          </form>
+          <p className="auth-toggle">
+            {isRegistering ? 'Existing member?' : "New producer?"}
+            <span onClick={() => setIsRegistering(!isRegistering)}>
+              {isRegistering ? 'Sign In' : 'Join Pro'}
+            </span>
+          </p>
         </div>
       </div>
     );
@@ -203,121 +232,132 @@ function App() {
   return (
     <div className="app-wrapper">
       <nav className="navbar">
-        <div className="navbar-content">
-          <div className="logo">
-            <div className="logo-icon">⚡</div> StemSplitter
+        <div className="container navbar-content">
+          <div className="brand">
+            <Icons.Bolt /> StemSplitter <span style={{ color: 'var(--accent-color)' }}>PRO</span>
           </div>
           <div className="nav-actions">
-            <button className="btn-secondary" onClick={() => setShowDocs(!showDocs)}>
-              {showDocs ? "Close Guide" : "How it Works"}
+            <button className="btn btn-secondary" onClick={() => setShowSettings(!showSettings)}>
+              <Icons.Settings /> Settings
             </button>
-            <button className="btn-icon" onClick={() => setShowSettings(!showSettings)}>⚙️</button>
-            <button className="btn-danger" onClick={handleLogout}>Logout</button>
+            <button className="btn btn-danger" onClick={handleLogout}>Logout</button>
           </div>
         </div>
       </nav>
 
-      <div className="container">
+      <main className="container">
         {showSettings && (
-          <section className="process-card settings-card">
-            <h3>Instance Settings</h3>
-            <div className="settings-fields">
-              <label>API Endpoint</label>
-              <input type="text" value={apiBase} onChange={e => setApiBase(e.target.value)} className="input-field" />
-              <button className="btn-primary" onClick={() => saveSettings(apiBase)}>Save</button>
-            </div>
-          </section>
-        )}
-
-        {showDocs ? (
-          <section className="process-card docs-card">
-            <h2>Separation Intelligence</h2>
-            <div className="docs-content">
-              <p><strong>1. Neural Analysis:</strong> Upload your track. Our high-fidelity model analyzes the complex spectral data.</p>
-              <p><strong>2. Frequency Extraction:</strong> The AI identifies unique harmonic signatures for vocals, drums, and bass.</p>
-              <p><strong>3. Studio-Grade Stems:</strong> Download 4 independent 32-bit WAV stems for your production.</p>
-            </div>
-          </section>
-        ) : (
-          <section className="hero">
-            <h1>Professional Audio <br/> Stem Separation</h1>
-            <p>Studio-grade AI intelligence. Extract vocals, drums, and music with surgical precision.</p>
-          </section>
-        )}
-
-        {!currentTask || currentTask.status === "completed" || currentTask.status === "failed" ? (
-          <div 
-            className={`dropzone ${dragActive ? 'active' : ''}`}
-            onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
-          >
-            <input type="file" accept="audio/*" onChange={handleFileChange} />
-            <div className="dropzone-text">
-              <span className="dropzone-icon">✨</span>
-              <h3>{file ? file.name : "Select your studio master"}</h3>
-              <p>Drag & drop or click to browse (MP3, WAV, FLAC)</p>
-            </div>
-            {file && !loading && (
-              <button className="btn-primary upload-btn" onClick={e => { e.stopPropagation(); handleUpload(); }}>
-                Begin Neural Separation
-              </button>
-            )}
-          </div>
-        ) : null}
-
-        {currentTask && (currentTask.status === "queued" || currentTask.status === "processing") && (
-          <div className="process-card progress-card">
-            <div className="progress-header">
-              <div>
-                <h4>{currentTask.filename}</h4>
-                <p>Analyzing harmonic structure...</p>
+          <section className="progress-card">
+            <h3 style={{ marginBottom: '1.5rem' }}>System Configuration</h3>
+            <div className="input-group">
+              <label>API Gateway Endpoint</label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input type="text" value={apiBase} onChange={e => setApiBase(e.target.value)} className="input-field" style={{ flex: 1 }} />
+                <button className="btn btn-primary" onClick={() => saveSettings(apiBase)}>Apply</button>
               </div>
-              <span className={`status-badge status-${currentTask.status}`}>{currentTask.status}</span>
             </div>
-            <div className="progress-bar-container">
-              <div className="progress-bar-fill" style={{ width: currentTask.status === 'processing' ? '70%' : '20%' }}></div>
-            </div>
-          </div>
+          </section>
         )}
+
+        <section className="hero">
+          <h1>High-Fidelity <br/> Audio Decomposition</h1>
+          <p>Extract vocals, percussion, and melodic layers with studio-grade AI precision.</p>
+        </section>
+
+        <div className="dropzone-container">
+          {!currentTask || currentTask.status === "completed" || currentTask.status === "failed" ? (
+            <div 
+              className={`dropzone ${dragActive ? 'active' : ''}`}
+              onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
+            >
+              <input type="file" accept="audio/*" onChange={handleFileChange} />
+              <div className="dropzone-ui">
+                <div className="dropzone-icon-box">
+                  <Icons.Upload />
+                </div>
+                <div className="dropzone-text">
+                  <h3>{file ? file.name : "Load Studio Master"}</h3>
+                  <p>Drag & drop high-resolution WAV or MP3</p>
+                </div>
+              </div>
+              {file && !loading && (
+                <button className="btn btn-primary action-btn" onClick={e => { e.stopPropagation(); handleUpload(); }}>
+                  Initialize Separation Engine
+                </button>
+              )}
+            </div>
+          ) : null}
+
+          {currentTask && (currentTask.status === "queued" || currentTask.status === "processing") && (
+            <div className="progress-card">
+              <div className="progress-info">
+                <div>
+                  <h4>{currentTask.filename}</h4>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                    Decomposing spectral layers...
+                  </p>
+                </div>
+                <span className="progress-status">{currentTask.status}</span>
+              </div>
+              <div className="progress-track">
+                <div className="progress-fill" style={{ width: currentTask.status === 'processing' ? '75%' : '15%' }}></div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {currentTask?.status === "completed" && (
-          <div className="results-grid">
-            {currentTask.results?.map(filename => (
-              <div key={filename} className="stem-card">
-                <div className="stem-info">
-                  <span className="stem-title">{filename.replace(".wav", "")}</span>
-                  <a href={`${apiBase}/outputs/htdemucs/${currentTask.folder}/${filename}`} download className="btn-download">Export Stem</a>
+          <div style={{ marginBottom: '6rem' }}>
+            <h2 className="section-title">Extracted Stems</h2>
+            <div className="results-grid">
+              {currentTask.results?.map(filename => (
+                <div key={filename} className="stem-card">
+                  <div className="stem-header">
+                    <span className="stem-name">{filename.replace(".wav", "")}</span>
+                    <a href={`${apiBase}/outputs/htdemucs/${currentTask.folder}/${filename}`} download className="stem-download">
+                      <Icons.Download /> Export
+                    </a>
+                  </div>
+                  <audio controls src={`${apiBase}/outputs/htdemucs/${currentTask.folder}/${filename}`} />
                 </div>
-                <audio controls src={`${apiBase}/outputs/htdemucs/${currentTask.folder}/${filename}`} />
-              </div>
-            ))}
+              ))}
+            </div>
+            <button className="btn btn-secondary" style={{ marginTop: '3rem' }} onClick={() => { setCurrentTask(null); setFile(null); }}>
+              ← Process New Track
+            </button>
           </div>
         )}
 
-        {currentTask && (
-          <button className="btn-back" onClick={() => { setCurrentTask(null); setFile(null); }}>
-            ← New Separation
-          </button>
+        {currentTask?.status === "failed" && (
+          <div className="progress-card" style={{ borderLeft: '4px solid var(--error-color)' }}>
+            <h4 style={{ color: var(--error-color) }}>Engine Failure</h4>
+            <p>{currentTask.error || "The processing engine encountered an unexpected error."}</p>
+            <button className="btn btn-secondary" style={{ marginTop: '1.5rem' }} onClick={() => { setCurrentTask(null); setFile(null); }}>
+              Retry with new file
+            </button>
+          </div>
         )}
 
-        <section className="history-section">
-          <h2 className="history-title">Separation Vault</h2>
+        <section className="history-section" style={{ paddingBottom: '10vh' }}>
+          <h2 className="section-title">Production History</h2>
           <div className="history-list">
+            {history.length === 0 && <p style={{ color: 'var(--text-secondary)' }}>No previous sessions found.</p>}
             {history.map(item => (
               <div 
                 key={item.file_id} 
                 className={`history-item ${currentTask?.file_id === item.file_id ? 'active' : ''}`} 
                 onClick={() => { setCurrentTask(item); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               >
-                <div className="history-info">
-                  <div className="history-name">{item.filename}</div>
-                  <div className="history-date">{item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}</div>
+                <div className="history-meta">
+                  <h5>{item.filename}</h5>
+                  <span>{item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Active Session'}</span>
                 </div>
-                <span className={`status-badge status-${item.status}`}>{item.status}</span>
+                <span className={`status-tag status-${item.status}`}>{item.status}</span>
               </div>
             ))}
           </div>
         </section>
-      </div>
+      </main>
     </div>
   )
 }

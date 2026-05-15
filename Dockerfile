@@ -1,6 +1,7 @@
 # --- Stage 1: Build Frontend ---
 FROM node:20-slim AS frontend-builder
 WORKDIR /app/frontend
+# Use --silent and optimize npm install
 COPY frontend/package*.json ./
 RUN npm install --silent
 COPY frontend/ ./
@@ -26,8 +27,9 @@ RUN touch backend/__init__.py
 # Copy frontend build assets
 COPY --from=frontend-builder /app/frontend/dist ./frontend-dist
 
-# Create storage directories
-RUN mkdir -p backend/uploads backend/outputs
+# Create storage base directory (will be used for /tmp mounting or ephemeral storage)
+RUN mkdir -p /tmp/stemsplitter/uploads /tmp/stemsplitter/outputs
 
-# Use a shell to expand environment variables like PORT
-CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+# Use uvicorn directly with optimized settings
+# Cloud Run injects PORT environment variable
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1 --timeout-keep-alive 300"]

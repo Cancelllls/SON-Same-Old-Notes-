@@ -22,8 +22,11 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--memory'
-      - '2Gi'
+      - '4Gi'
+      - '--cpu'
+      - '2'
+      - '--timeout'
+      - '600'
 
 options:
-  # This resolves the "specify build.logs_bucket" error by using Cloud Logging only
   logging: CLOUD_LOGGING_ONLY
