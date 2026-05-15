@@ -4,13 +4,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 import bcrypt
-from jose import JWTError, jwt
-import shutil
 import os
+import shutil
 import subprocess
 import secrets
 import datetime
 from pathlib import Path
+from jose import JWTError, jwt
 from .database import SessionLocal, AudioTask, User
 
 # Security Config
@@ -22,11 +22,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 app = FastAPI()
 
-# Relaxed CORS for debugging (Fixed for compatibility)
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False, # Must be False if origins is "*"
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -36,7 +36,8 @@ async def add_security_headers(request: Request, call_next):
     response: Response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; media-src 'self' http://localhost:8000 http://127.0.0.1:8000;"
+    # Note: Content-Security-Policy might need adjustment for production
+    response.headers["Content-Security-Policy"] = "default-src 'self'; media-src 'self' *; connect-src 'self' *; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: *;"
     return response
 
 UPLOAD_DIR = Path("backend/uploads")
@@ -46,11 +47,18 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/outputs", StaticFiles(directory=str(OUTPUT_DIR)), name="outputs")
 
+# Mount frontend if it exists
+FRONTEND_DIR = Path("frontend-dist")
+if FRONTEND_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
+
 @app.get("/")
 async def root():
+    if FRONTEND_DIR.exists():
+        return Response(content=(FRONTEND_DIR / "index.html").read_text(), media_type="text/html")
     return {"message": "StemSplitter API is running", "status": "healthy"}
 
-# Helper functions
+# Database Dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -58,6 +66,7 @@ def get_db():
     finally:
         db.close()
 
+# Auth Helpers
 def verify_password(plain_password, hashed_password):
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
@@ -108,7 +117,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     access_token = create_access_token(data={"sub": user.id})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# Core Routes
+# Task Management
 def update_task_status(file_id: str, status: str, results=None, folder=None, error=None):
     db = SessionLocal()
     task = db.query(AudioTask).filter(AudioTask.file_id == file_id).first()
@@ -123,7 +132,7 @@ def update_task_status(file_id: str, status: str, results=None, folder=None, err
 def separate_audio(file_id: str, input_path: Path):
     try:
         update_task_status(file_id, "processing")
-        # Switching to htdemucs: Faster and less RAM usage
+        # Run Demucs
         subprocess.run([
             "demucs", 
             "-n", "htdemucs", 
@@ -133,7 +142,6 @@ def separate_audio(file_id: str, input_path: Path):
         ], check=True)
         
         stem_name = input_path.stem
-        # Updated to htdemucs subfolder
         result_dir = OUTPUT_DIR / "htdemucs" / stem_name
         
         if result_dir.exists():
@@ -142,9 +150,10 @@ def separate_audio(file_id: str, input_path: Path):
         else:
             update_task_status(file_id, "failed", error="Output directory not found")
     except Exception as e:
-        print(f"[SECURITY LOG] Demucs failed for {file_id}: {str(e)}")
-        update_task_status(file_id, "failed", error="Processing engine encountered an error.")
+        print(f"Demucs failed: {str(e)}")
+        update_task_status(file_id, "failed", error=str(e))
 
+# Core Routes
 @app.post("/upload")
 async def upload_audio(
     background_tasks: BackgroundTasks, 
@@ -170,12 +179,20 @@ async def upload_audio(
 async def get_status(file_id: str, db: Session = Depends(get_db)):
     task = db.query(AudioTask).filter(AudioTask.file_id == file_id).first()
     if not task: return {"status": "not_found"}
-    return {"status": task.status, "files": task.results, "folder": task.folder, "error": task.error}
+    return {"status": task.status, "results": task.results, "folder": task.folder, "error": task.error}
 
 @app.get("/history")
 async def get_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(AudioTask).filter(AudioTask.owner_id == current_user.id).order_by(AudioTask.created_at.desc()).limit(20).all()
 
+# SPA Catch-all
+@app.get("/{full_path:path}")
+async def catch_all(full_path: str):
+    if FRONTEND_DIR.exists():
+        return Response(content=(FRONTEND_DIR / "index.html").read_text(), media_type="text/html")
+    raise HTTPException(status_code=404)
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, server_header=False)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=port, server_header=False)

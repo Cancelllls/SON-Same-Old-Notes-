@@ -5,7 +5,6 @@ interface TaskStatus {
   file_id: string;
   filename: string;
   status: string;
-  files?: string[];
   results?: string[];
   folder?: string;
   error?: string;
@@ -19,7 +18,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
-  const [apiBase, setApiBase] = useState(localStorage.getItem("apiBase") || "http://localhost:8000");
+  const [apiBase, setApiBase] = useState(localStorage.getItem("apiBase") || window.location.origin);
   const [showSettings, setShowSettings] = useState(false);
   
   // Auth state
@@ -39,7 +38,7 @@ function App() {
         return;
       }
       const data = await response.json();
-      setHistory(data);
+      setHistory(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to fetch history", error);
     }
@@ -71,7 +70,6 @@ function App() {
         localStorage.setItem("token", data.access_token);
       }
     } catch (error: any) {
-      console.error("Login error:", error);
       alert(`Login failed: ${error.message}`);
     }
   };
@@ -102,23 +100,10 @@ function App() {
   };
 
   const saveSettings = (url: string) => {
-    // Sanitize: remove trailing slash
     const sanitized = url.endsWith('/') ? url.slice(0, -1) : url;
     setApiBase(sanitized);
     localStorage.setItem("apiBase", sanitized);
     setShowSettings(false);
-  };
-
-  const checkHealth = async () => {
-    try {
-      const res = await fetch(`${apiBase}/`);
-      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
-      const data = await res.json();
-      alert(`API Status: ${data.message}`);
-    } catch (e: any) {
-      console.error("Health check failed:", e);
-      alert(`Connection Failed: ${e.message}. Ensure your URL is correct and the backend is public.`);
-    }
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -151,6 +136,7 @@ function App() {
         headers: { "Authorization": `Bearer ${token}` },
         body: formData,
       });
+      if (!response.ok) throw new Error("Upload failed");
       const data = await response.json();
       setCurrentTask({ file_id: data.file_id, filename: file.name, status: "queued" });
     } catch (error) {
@@ -161,7 +147,7 @@ function App() {
 
   useEffect(() => {
     let interval: number;
-    if (currentTask?.file_id && currentTask.status !== "completed" && currentTask.status !== "failed") {
+    if (currentTask?.file_id && (currentTask.status === "queued" || currentTask.status === "processing")) {
       interval = setInterval(async () => {
         try {
           const response = await fetch(`${apiBase}/status/${currentTask.file_id}`);
@@ -183,106 +169,73 @@ function App() {
   if (!token) {
     return (
       <div className="app-wrapper">
-        <div className="container" style={{ maxWidth: '450px', marginTop: '10vh' }}>
-          <div className="logo" style={{ fontSize: '2.5rem', justifyContent: 'center', marginBottom: '3rem' }}>
+        <div className="container auth-container">
+          <div className="logo auth-logo">
             <div className="logo-icon">⚡</div> StemSplitter
           </div>
           <section className="process-card">
-            <h2 style={{ marginBottom: '2rem', textAlign: 'center', fontWeight: '700' }}>
-              {isRegistering ? 'Create Account' : 'Welcome Back'}
-            </h2>
-            <form onSubmit={isRegistering ? handleRegister : handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div className="input-group">
-                <input 
-                  type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required 
-                  className="btn" style={{ width: '100%', textAlign: 'left', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', cursor: 'text', padding: '1rem' }}
-                />
-              </div>
-              <div className="input-group">
-                <input 
-                  type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required 
-                  className="btn" style={{ width: '100%', textAlign: 'left', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', cursor: 'text', padding: '1rem' }}
-                />
-              </div>
-              <button className="btn-primary" type="submit" style={{ width: '100%', padding: '1rem' }}>
+            <h2>{isRegistering ? 'Create Account' : 'Welcome Back'}</h2>
+            <form onSubmit={isRegistering ? handleRegister : handleLogin} className="auth-form">
+              <input 
+                type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required 
+                className="input-field"
+              />
+              <input 
+                type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required 
+                className="input-field"
+              />
+              <button className="btn-primary" type="submit">
                 {isRegistering ? 'Sign Up' : 'Sign In'}
               </button>
             </form>
-            <p style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+            <p className="auth-toggle">
               {isRegistering ? 'Already have an account?' : "Don't have an account?"}
-              <span 
-                style={{ color: 'var(--primary-color)', cursor: 'pointer', marginLeft: '0.5rem', fontWeight: '600' }}
-                onClick={() => setIsRegistering(!isRegistering)}
-              >
+              <span onClick={() => setIsRegistering(!isRegistering)}>
                 {isRegistering ? 'Login' : 'Sign Up'}
               </span>
             </p>
-            <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              <p style={{ marginBottom: '0.5rem' }}>API Endpoint Configuration:</p>
-              <input 
-                type="text" 
-                value={apiBase} 
-                onChange={e => saveSettings(e.target.value)}
-                className="btn" 
-                style={{ width: '100%', fontSize: '0.75rem', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', cursor: 'text' }}
-              />
-              <p style={{ marginTop: '0.5rem' }}>If using Codespaces, paste your Port 8000 forwarded URL here.</p>
-              <button 
-                className="btn-primary" 
-                style={{ marginTop: '0.5rem', width: '100%', padding: '0.5rem', background: 'rgba(56, 189, 248, 0.1)', color: 'var(--primary-color)', border: '1px solid var(--primary-color)' }}
-                onClick={checkHealth}
-              >
-                Test Connection
-              </button>
-              </div>
-              </section>
-              </div>
-              </div>    );
+          </section>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="app-wrapper">
       <nav className="navbar">
         <div className="navbar-content">
-          <a href="/" className="logo">
+          <div className="logo">
             <div className="logo-icon">⚡</div> StemSplitter
-          </a>
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button className="btn-primary" style={{ padding: '0.6rem 1.2rem', fontSize: '0.85rem' }} onClick={() => setShowDocs(!showDocs)}>
+          </div>
+          <div className="nav-actions">
+            <button className="btn-secondary" onClick={() => setShowDocs(!showDocs)}>
               {showDocs ? "Close Guide" : "How it Works"}
             </button>
-            <button className="btn-primary" style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }} onClick={() => setShowSettings(!showSettings)}>
-              ⚙️
-            </button>
-            <button className="btn-primary" style={{ padding: '0.6rem 1.2rem', fontSize: '0.85rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error-color)', border: '1px solid rgba(239, 68, 68, 0.2)', boxShadow: 'none' }} onClick={handleLogout}>
-              Logout
-            </button>
+            <button className="btn-icon" onClick={() => setShowSettings(!showSettings)}>⚙️</button>
+            <button className="btn-danger" onClick={handleLogout}>Logout</button>
           </div>
         </div>
       </nav>
 
       <div className="container">
         {showSettings && (
-          <section className="process-card" style={{ marginBottom: '3rem' }}>
-            <h3 style={{ marginBottom: '1.5rem', fontWeight: '700' }}>Instance Settings</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>API Endpoint</label>
-              <input 
-                type="text" value={apiBase} onChange={e => setApiBase(e.target.value)}
-                className="btn" style={{ width: '100%', textAlign: 'left', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', cursor: 'text' }}
-              />
-              <button className="btn-primary" style={{ width: '100%' }} onClick={() => saveSettings(apiBase)}>Save Configuration</button>
+          <section className="process-card settings-card">
+            <h3>Instance Settings</h3>
+            <div className="settings-fields">
+              <label>API Endpoint</label>
+              <input type="text" value={apiBase} onChange={e => setApiBase(e.target.value)} className="input-field" />
+              <button className="btn-primary" onClick={() => saveSettings(apiBase)}>Save</button>
             </div>
           </section>
         )}
 
         {showDocs ? (
-          <section className="process-card" style={{ textAlign: 'left', marginBottom: '3rem' }}>
-            <h2 className="history-title" style={{ fontSize: '1.5rem', marginBottom: '1.5rem' }}>Separation Intelligence</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', color: 'var(--text-secondary)' }}>
-              <p><strong style={{ color: '#fff' }}>1. Neural Analysis:</strong> Upload your track. Our high-fidelity demucs model analyzes the complex spectral data.</p>
-              <p><strong style={{ color: '#fff' }}>2. Frequency Extraction:</strong> The AI identifies unique harmonic signatures for vocals, drums, and bass.</p>
-              <p><strong style={{ color: '#fff' }}>3. Studio-Grade Stems:</strong> Download 4 independent 32-bit WAV stems for your production or practice.</p>
+          <section className="process-card docs-card">
+            <h2>Separation Intelligence</h2>
+            <div className="docs-content">
+              <p><strong>1. Neural Analysis:</strong> Upload your track. Our high-fidelity model analyzes the complex spectral data.</p>
+              <p><strong>2. Frequency Extraction:</strong> The AI identifies unique harmonic signatures for vocals, drums, and bass.</p>
+              <p><strong>3. Studio-Grade Stems:</strong> Download 4 independent 32-bit WAV stems for your production.</p>
             </div>
           </section>
         ) : (
@@ -297,14 +250,14 @@ function App() {
             className={`dropzone ${dragActive ? 'active' : ''}`}
             onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
           >
-            <input type="file" accept="audio/*" onChange={handleFileChange} title="" />
+            <input type="file" accept="audio/*" onChange={handleFileChange} />
             <div className="dropzone-text">
               <span className="dropzone-icon">✨</span>
               <h3>{file ? file.name : "Select your studio master"}</h3>
               <p>Drag & drop or click to browse (MP3, WAV, FLAC)</p>
             </div>
             {file && !loading && (
-              <button className="btn-primary" onClick={e => { e.stopPropagation(); handleUpload(); }} style={{ marginTop: '2.5rem', padding: '1rem 2.5rem', fontSize: '1rem' }}>
+              <button className="btn-primary upload-btn" onClick={e => { e.stopPropagation(); handleUpload(); }}>
                 Begin Neural Separation
               </button>
             )}
@@ -312,25 +265,23 @@ function App() {
         ) : null}
 
         {currentTask && (currentTask.status === "queued" || currentTask.status === "processing") && (
-          <div className="process-card">
+          <div className="process-card progress-card">
             <div className="progress-header">
               <div>
-                <h4 style={{ fontWeight: '700', fontSize: '1.1rem' }}>{currentTask.filename}</h4>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
-                  Analyzing harmonic structure...
-                </p>
+                <h4>{currentTask.filename}</h4>
+                <p>Analyzing harmonic structure...</p>
               </div>
-              <span className="status-badge status-processing">{currentTask.status}</span>
+              <span className={`status-badge status-${currentTask.status}`}>{currentTask.status}</span>
             </div>
             <div className="progress-bar-container">
-              <div className="progress-bar-fill" style={{ width: currentTask.status === 'processing' ? '65%' : '15%' }}></div>
+              <div className="progress-bar-fill" style={{ width: currentTask.status === 'processing' ? '70%' : '20%' }}></div>
             </div>
           </div>
         )}
 
         {currentTask?.status === "completed" && (
           <div className="results-grid">
-            {(currentTask.files || currentTask.results)?.map(filename => (
+            {currentTask.results?.map(filename => (
               <div key={filename} className="stem-card">
                 <div className="stem-info">
                   <span className="stem-title">{filename.replace(".wav", "")}</span>
@@ -343,14 +294,7 @@ function App() {
         )}
 
         {currentTask && (
-          <button 
-            className="btn-primary" 
-            style={{ marginTop: '2rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)' }}
-            onClick={() => {
-              setCurrentTask(null);
-              setFile(null);
-            }}
-          >
+          <button className="btn-back" onClick={() => { setCurrentTask(null); setFile(null); }}>
             ← New Separation
           </button>
         )}
@@ -358,29 +302,17 @@ function App() {
         <section className="history-section">
           <h2 className="history-title">Separation Vault</h2>
           <div className="history-list">
-            {history.length === 0 && <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Your processed stems will appear here.</p>}
             {history.map(item => (
               <div 
                 key={item.file_id} 
-                className={`history-item ${currentTask?.file_id === item.file_id ? 'active-history' : ''}`} 
-                onClick={() => {
-                  setCurrentTask(item);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                style={currentTask?.file_id === item.file_id ? { border: '1px solid var(--primary-color)', background: 'rgba(56, 189, 248, 0.05)' } : {}}
+                className={`history-item ${currentTask?.file_id === item.file_id ? 'active' : ''}`} 
+                onClick={() => { setCurrentTask(item); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               >
-                <div>
+                <div className="history-info">
                   <div className="history-name">{item.filename}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                    {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}
-                  </div>
+                  <div className="history-date">{item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}</div>
                 </div>
-                <span className={`status-badge ${
-                  item.status === 'completed' ? 'status-completed' : 
-                  item.status === 'failed' ? 'status-failed' : 'status-processing'
-                }`}>
-                  {item.status}
-                </span>
+                <span className={`status-badge status-${item.status}`}>{item.status}</span>
               </div>
             ))}
           </div>

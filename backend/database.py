@@ -15,7 +15,7 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True, index=True) # UUID or email
+    id = Column(String, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -27,7 +27,7 @@ class AudioTask(Base):
 
     file_id = Column(String, primary_key=True, index=True)
     filename = Column(String)
-    status = Column(String)
+    status = Column(String) # queued, processing, completed, failed
     results = Column(JSON, nullable=True)
     folder = Column(String, nullable=True)
     error = Column(String, nullable=True)
@@ -36,4 +36,5 @@ class AudioTask(Base):
     owner_id = Column(String, ForeignKey("users.id"))
     owner = relationship("User", back_populates="tasks")
 
+# Create tables
 Base.metadata.create_all(bind=engine)

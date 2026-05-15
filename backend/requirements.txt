@@ -5,3 +5,7 @@ torch
 torchaudio
 python-multipart
 aiofiles
+sqlalchemy
+bcrypt
+python-jose[cryptography]
+pytubefix
