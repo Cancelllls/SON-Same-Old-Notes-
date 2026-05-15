@@ -326,7 +326,7 @@ function App() {
 
         {currentTask?.status === "failed" && (
           <div className="progress-card" style={{ borderLeft: '4px solid var(--error-color)' }}>
-            <h4 style={{ color: var(--error-color) }}>Engine Failure</h4>
+            <h4 style={{ color: 'var(--error-color)' }}>Engine Failure</h4>
             <p>{currentTask.error || "The processing engine encountered an unexpected error."}</p>
             <button className="btn btn-secondary" style={{ marginTop: '1.5rem' }} onClick={() => { setCurrentTask(null); setFile(null); }}>
               Retry with new file
