@@ -10,9 +10,9 @@ RUN npm run build
 FROM python:3.12-slim
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (ffmpeg for demucs, libgomp1 for torch)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg && \
+    apt-get install -y --no-install-recommends ffmpeg libgomp1 && \
     rm -rf /var/lib/apt/lists/*
 
 # Install backend dependencies
@@ -29,8 +29,5 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend-dist
 # Create storage directories
 RUN mkdir -p backend/uploads backend/outputs
 
-# Expose port (Cloud Run default)
-EXPOSE 8080
-
-# Start command
-CMD ["python3", "-m", "backend.main"]
+# Use a shell to expand environment variables like PORT
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

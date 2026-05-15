@@ -58,8 +58,11 @@ if FRONTEND_DIR.exists():
 
 @app.get("/")
 async def root():
-    if FRONTEND_DIR.exists():
-        return Response(content=(FRONTEND_DIR / "index.html").read_text(), media_type="text/html")
+    try:
+        if FRONTEND_DIR.exists() and (FRONTEND_DIR / "index.html").exists():
+            return Response(content=(FRONTEND_DIR / "index.html").read_text(), media_type="text/html")
+    except Exception as e:
+        print(f"Error serving index.html: {e}")
     return {"message": "StemSplitter API is running", "status": "healthy"}
 
 # Database Dependency
@@ -194,10 +197,14 @@ async def get_history(db: Session = Depends(get_db), current_user: User = Depend
 =======
 # SPA Catch-all (Must be last)
 >>>>>>> 73233a251ce18d1e6a6b8aaf4c1b811c751f0aca
+# SPA Catch-all
 @app.get("/{full_path:path}")
 async def catch_all(full_path: str):
-    if FRONTEND_DIR.exists():
-        return Response(content=(FRONTEND_DIR / "index.html").read_text(), media_type="text/html")
+    try:
+        if FRONTEND_DIR.exists() and (FRONTEND_DIR / "index.html").exists():
+            return Response(content=(FRONTEND_DIR / "index.html").read_text(), media_type="text/html")
+    except Exception as e:
+        print(f"Error in catch-all serving index.html: {e}")
     raise HTTPException(status_code=404)
 
 if __name__ == "__main__":
